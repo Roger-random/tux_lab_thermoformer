@@ -118,6 +118,7 @@ class StandbyState(QState):
     self.ui = QWidget()
     label = QLabel("Standby")
     self.btnDC = QPushButton("Direct Control", self.ui)
+    self.btnDC.flat = True
     
     vbox = QVBoxLayout()
     vbox.addWidget(label)
@@ -125,9 +126,11 @@ class StandbyState(QState):
     self.ui.setLayout(vbox)
 
   def onEntry(self, event):
-    print("StandbyState entered")
-    print(event)
     self.uiWindow.setCentralWidget(self.ui)
+    
+  def onExit(self, event):
+    # Reclaim the 'self.ui' object so uiWindow doesn't delete it
+    self.uiWindow.takeCentralWidget()
 
   # Called by state machine to connect transitions
   def toDirectControl(self, directControl):
@@ -153,9 +156,11 @@ class DirectControlState(QState):
     self.ui.setLayout(vbox)
     
   def onEntry(self, event):
-    print("DirectControl entered")
-    print(event)
     self.uiWindow.setCentralWidget(self.ui)
+
+  def onExit(self, event):
+    # Reclaim the 'self.ui' object so uiWindow doesn't delete it
+    self.uiWindow.takeCentralWidget()
     
   def toStandby(self, standby):
     self.addTransition(self.btnSB.clicked, standby)
