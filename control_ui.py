@@ -159,6 +159,27 @@ class ExpandToggleButton(ExpandButton):
 
 #######################################################################
 #
+# The top navigation bar consists of a grid layout with four equal-
+# sized positions.
+#  Leftmost: (Column 0) should be a button that takes user "back"
+#  Rightmost:(Column 3) should be a button that takes user "forward"
+#  Middle two (Column 1 and 2) can vary depending on state.
+#
+# TODO: is this better accomplished with a QToolbar?
+
+class NavBar(QGridLayout):
+  def __init__(self, parent=None):
+    super().__init__(parent)
+    self.setColumnStretch(0, 1)
+    self.setColumnStretch(1, 1)
+    self.setColumnStretch(2, 1)
+    self.setColumnStretch(3, 1)
+
+  def addNav(self, navItem, column):
+    self.addWidget(navItem, 0, column)
+
+#######################################################################
+#
 # Application UI
 #
 #######################################################################
@@ -264,11 +285,13 @@ class DirectControlState(QState):
         print("Warning: Extraneous element in statusIO. Was there a misspelling? " + sio[1])
     
     self.btnSB = ExpandButton("Standby", self.ui)
+    navBar = NavBar()
+    navBar.addNav(self.btnSB, 3)
     
     vbox = QVBoxLayout()
+    vbox.insertLayout(-1, navBar, stretch=2)
     vbox.addWidget(StateLabel("direct control"), stretch=1)
     vbox.insertLayout(-1, hbox, stretch=9)
-    vbox.addWidget(self.btnSB, stretch=2)
     self.ui.setLayout(vbox)
     
   def onEntry(self, event):
