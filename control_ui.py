@@ -497,6 +497,33 @@ class DropState(MachineState):
 
 #######################################################################
 #
+# Forming state applies vacuum to pull workpiece against mold
+
+class FormingState(MachineState):
+  def setupUI(self):
+    self.btnComplete = ExpandButton("Complete")
+    navBar = NavBar()
+    navBar.addNav(self.btnComplete, 3)
+
+    formingMenu = PlaceholderLayout("TODO: Timer to count how long we've been forming. Show timer threshold for auto cycle. Option to disable auto cycle.")
+
+    self.ui = StateUI(navBar, "forming", formingMenu)
+
+  def toComplete(self, complete):
+    self.addTransition(self.btnComplete.clicked, complete)
+
+  def onEntry(self, e):
+    super().onEntry(e)
+    self.ioManager.turnOn(downforcevalve)
+    self.ioManager.turnOn(vacvalve)
+
+  def onExit(self, e):
+    super().onExit(e)
+    self.ioManager.turnOff(downforcevalve)
+    self.ioManager.turnOff(vacvalve)
+
+#######################################################################
+#
 # Main state machine of the thermoformer control
 
 class StateMachine(QStateMachine):
@@ -511,6 +538,7 @@ class StateMachine(QStateMachine):
     loading = LoadingState(window, ioManager)
     heating = HeatingState(window, ioManager)
     dropping = DropState(window, ioManager)
+    forming = FormingState(window, ioManager)
     
     directControl.toStandby(standby)
     standby.toDirectControl(directControl)
@@ -522,6 +550,7 @@ class StateMachine(QStateMachine):
     heating.toLoading(loading)
     heating.toDrop(dropping)
     dropping.toHeating(heating)
+    dropping.toForming(forming)
 
     self.addState(directControl)
     self.addState(standby)
@@ -529,6 +558,7 @@ class StateMachine(QStateMachine):
     self.addState(loading)
     self.addState(heating)
     self.addState(dropping)
+    self.addState(forming)
     
     self.setInitialState(standby)
 
