@@ -464,6 +464,39 @@ class HeatingState(MachineState):
 
 #######################################################################
 #
+# Drop state waits for the frame to drop to the table
+
+class DropState(MachineState):
+  def setupUI(self):
+    self.btnHeating = ExpandButton("Heating")
+    self.btnForming = ExpandButton("Forming")
+    navBar = NavBar()
+    navBar.addNav(self.btnHeating, 0)
+    navBar.addNav(self.btnForming, 3)
+
+    dropMenu = PlaceholderLayout("TODO: Button to active downforce instead of waiting. Timer to count how long we've waited for drop. Disable forward progress until frame down switch is closed.")
+
+    self.ui = StateUI(navBar, "dropping", dropMenu)
+
+  def toHeating(self, heating):
+    self.addTransition(self.btnHeating.clicked, heating)
+
+  def toForming(self, forming):
+    self.addTransition(self.btnForming.clicked, forming)
+
+  def onEntry(self, e):
+    super().onEntry(e)
+    self.ioManager.turnOff(heater)
+    self.ioManager.turnOff(upvalve)
+
+  def onExit(self, e):
+    super().onExit(e)
+    if e.sender() == self.btnHeating:
+      self.ioManager.turnOn(heater)
+      self.ioManager.turnOn(upvalve)
+
+#######################################################################
+#
 # Main state machine of the thermoformer control
 
 class StateMachine(QStateMachine):
@@ -477,6 +510,7 @@ class StateMachine(QStateMachine):
     active = ActiveState(window, ioManager)
     loading = LoadingState(window, ioManager)
     heating = HeatingState(window, ioManager)
+    dropping = DropState(window, ioManager)
     
     directControl.toStandby(standby)
     standby.toDirectControl(directControl)
@@ -486,12 +520,15 @@ class StateMachine(QStateMachine):
     loading.toActivate(active)
     loading.toHeating(heating)
     heating.toLoading(loading)
+    heating.toDrop(dropping)
+    dropping.toHeating(heating)
 
     self.addState(directControl)
     self.addState(standby)
     self.addState(active)
     self.addState(loading)
     self.addState(heating)
+    self.addState(dropping)
     
     self.setInitialState(standby)
 
