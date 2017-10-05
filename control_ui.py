@@ -411,7 +411,7 @@ class LoadingState(MachineState):
     navBar.addNav(self.btnActive, 0)
     navBar.addNav(self.btnHeating, 3)
 
-    loadingMenu = PlaceholderLayout("TODO: (1) Button to start auto-cycle. (2) Button to allow operator to raise/lower the frame as needed. (3) Button to turn magnet on/off")
+    loadingMenu = PlaceholderLayout("TODO: (1) Button to start auto-cycle. (2) Button to allow operator to raise/lower the frame as needed. (3) Button to turn magnet on/off (4) Deactivate forward progress until heater is up to temperature")
 
     self.ui = StateUI(navBar, "loading", loadingMenu)
 
@@ -434,6 +434,36 @@ class LoadingState(MachineState):
 
 #######################################################################
 #
+# Heating state holds the workpiece up to the heater
+
+class HeatingState(MachineState):
+  def setupUI(self):
+    self.btnLoading = ExpandButton("Loading")
+    self.btnDrop = ExpandButton("Drop")
+    navBar = NavBar()
+    navBar.addNav(self.btnLoading, 0)
+    navBar.addNav(self.btnDrop, 3)
+
+    heatingMenu = PlaceholderLayout("TODO: Timer counts up on heating duration. Show time threshold parameter for auto operation. Option to turn off auto operation")
+
+    self.ui = StateUI(navBar, "heating", heatingMenu)
+
+  def toLoading(self, loading):
+    self.addTransition(self.btnLoading.clicked, loading)
+
+  def toDrop(self, drop):
+    self.addTransition(self.btnDrop.clicked, drop)
+
+  def onEntry(self, e):
+    super().onEntry(e)
+    self.ioManager.turnOn(heaterforwardvalve)
+
+  def onExit(self, e):
+    super().onExit(e)
+    self.ioManager.turnOff(heaterforwardvalve)
+
+#######################################################################
+#
 # Main state machine of the thermoformer control
 
 class StateMachine(QStateMachine):
@@ -446,6 +476,7 @@ class StateMachine(QStateMachine):
     directControl = DirectControlState(window, ioManager)
     active = ActiveState(window, ioManager)
     loading = LoadingState(window, ioManager)
+    heating = HeatingState(window, ioManager)
     
     directControl.toStandby(standby)
     standby.toDirectControl(directControl)
@@ -453,11 +484,14 @@ class StateMachine(QStateMachine):
     active.toStandby(standby)
     active.toLoading(loading)
     loading.toActivate(active)
+    loading.toHeating(heating)
+    heating.toLoading(loading)
 
     self.addState(directControl)
     self.addState(standby)
     self.addState(active)
     self.addState(loading)
+    self.addState(heating)
     
     self.setInitialState(standby)
 
