@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtCore import QState, QStateMachine
-from PyQt5.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QVBoxLayout, QPushButton, QLabel, QWidget
+from PyQt5.QtWidgets import QApplication, QMainWindow, QGridLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QPushButton, QLabel, QWidget
 
 # Name:Pin dictionary for the GPIO pins used as digital inputs.
 # The name corresponds to the labels on the schematic.
@@ -135,7 +135,33 @@ class StandbyState(QState):
   # Called by state machine to connect transitions
   def toDirectControl(self, directControl):
     self.addTransition(self.btnDC.clicked, directControl)
+
+# Default QPushButton expands horizontally to fill available space but
+# only take up as much vertical space as it needs for the enclosed label.
+# This derived class expands to fill both horizontally and vertically.
+class ExpandButton(QPushButton):
+  def __init__(self, text, parent=None):
+    super().__init__(text, parent)
+    self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
     
+# This button is modified to have an on/off state (checked true/false)
+# that is toggled on each press.
+class ExpandToggleButton(ExpandButton):
+  def __init__(self, text, parent=None):
+    super().__init__(text, parent)
+    self.setCheckable(True)
+    self.updateCheckedStyle()
+    
+  def updateCheckedStyle(self):
+    if self.isChecked():
+      self.setStyleSheet("ExpandToggleButton {background-color : green; color : white}")
+    else:
+      self.setStyleSheet("ExpandToggleButton {background-color : white; color : gray}")
+    
+  def nextCheckState(self):
+    super().nextCheckState()
+    self.updateCheckedStyle()
+      
 
 # DirectControlState allows direct access to outputs
 class DirectControlState(QState):
@@ -148,11 +174,24 @@ class DirectControlState(QState):
   def setupUI(self):
     self.ui = QWidget()
     label = QLabel("Direct Control")
-    self.btnSB = QPushButton("Standby", self.ui)
+    
+    gridbox = QGridLayout()
+    gridbox.addWidget(ExpandToggleButton("Main"), 0, 0)
+    gridbox.addWidget(ExpandToggleButton("Vac"), 0, 1)
+    gridbox.addWidget(ExpandToggleButton("Heat"), 0, 2)
+    gridbox.addWidget(ExpandToggleButton("Fwd"),  1, 0)
+    gridbox.addWidget(ExpandToggleButton("Up"), 1, 1)
+    gridbox.addWidget(ExpandToggleButton("Down"), 1, 2)
+    gridbox.addWidget(ExpandToggleButton("Suck"), 2, 0)
+    gridbox.addWidget(ExpandToggleButton("Blow"), 2, 1)
+    gridbox.addWidget(ExpandToggleButton("Magnets"), 2, 2)
+    
+    self.btnSB = ExpandButton("Standby", self.ui)
     
     vbox = QVBoxLayout()
-    vbox.addWidget(label)
-    vbox.addWidget(self.btnSB)
+    vbox.addWidget(label, stretch=1)
+    vbox.insertLayout(-1, gridbox, stretch=9)
+    vbox.addWidget(self.btnSB, stretch=2)
     self.ui.setLayout(vbox)
     
   def onEntry(self, event):
