@@ -194,6 +194,18 @@ class StateUI(QWidget):
 
 #######################################################################
 #
+# PlaceholderLayout is a grid layout with a single QLabel with the given
+# text. (Text-wrapping is activated.)
+
+class PlaceholderLayout(QGridLayout):
+  def __init__(self, label, parent=None):
+    super().__init__(parent)
+    l = QLabel(label)
+    l.setWordWrap(True)
+    self.addWidget(l)
+
+#######################################################################
+#
 # Application UI
 #
 #######################################################################
@@ -313,6 +325,10 @@ class StandbyState(MachineState):
     
     self.ui = StateUI(navBar, "standby", standbyMenu)
 
+  def onEntry(self, e):
+    super().onEntry(e)
+    self.ioManager.outputReset()
+
   # Called by state machine to connect transitions
   def toDirectControl(self, directControl):
     self.addTransition(self.btnDC.clicked, directControl)
@@ -365,10 +381,7 @@ class ActiveState(MachineState):
     navBar.addNav(self.btnStandby, 0)
     navBar.addNav(self.btnLoading, 3)
     
-    activeMenu = QGridLayout()
-    todoLabel = QLabel("TODO: Turn on main, wait 2s, turn on vacuum, wait 2s, turn on heater. Leave 'Loading' button inactive until sequence is complete.")
-    todoLabel.setWordWrap(True)
-    activeMenu.addWidget(todoLabel)
+    activeMenu = PlaceholderLayout("TODO: Turn on main, wait 2s, turn on vacuum, wait 2s, turn on heater. Leave 'Loading' button inactive until sequence is complete.")
     
     self.ui = StateUI(navBar, "active", activeMenu)
     
@@ -388,6 +401,39 @@ class ActiveState(MachineState):
 
 #######################################################################
 #
+# Loading state raises the frame so operator can load work material
+
+class LoadingState(MachineState):
+  def setupUI(self):
+    self.btnActive = ExpandButton("Active")
+    self.btnHeating = ExpandButton("Heating")
+    navBar = NavBar()
+    navBar.addNav(self.btnActive, 0)
+    navBar.addNav(self.btnHeating, 3)
+
+    loadingMenu = PlaceholderLayout("TODO: (1) Button to start auto-cycle. (2) Button to allow operator to raise/lower the frame as needed. (3) Button to turn magnet on/off")
+
+    self.ui = StateUI(navBar, "loading", loadingMenu)
+
+  def toActivate(self, activate):
+    self.addTransition(self.btnActive.clicked, activate)
+
+  def toHeating(self, heating):
+    self.addTransition(self.btnHeating.clicked, heating)
+
+  def onEntry(self, event):
+    super().onEntry(event)
+    self.ioManager.turnOn(upvalve)
+    self.ioManager.turnOn(covermagnets)
+
+  def onExit(self, e):
+    super().onExit(e)
+    if e.sender() == self.btnActive:
+      self.ioManager.turnOff(upvalve)
+      self.ioManager.turnOff(covermagnets)
+
+#######################################################################
+#
 # Main state machine of the thermoformer control
 
 class StateMachine(QStateMachine):
@@ -399,15 +445,19 @@ class StateMachine(QStateMachine):
     standby = StandbyState(window, ioManager)
     directControl = DirectControlState(window, ioManager)
     active = ActiveState(window, ioManager)
+    loading = LoadingState(window, ioManager)
     
     directControl.toStandby(standby)
     standby.toDirectControl(directControl)
     standby.toActivate(active)
     active.toStandby(standby)
+    active.toLoading(loading)
+    loading.toActivate(active)
 
     self.addState(directControl)
     self.addState(standby)
     self.addState(active)
+    self.addState(loading)
     
     self.setInitialState(standby)
 
