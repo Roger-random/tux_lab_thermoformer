@@ -2,60 +2,97 @@ import sys
 from PyQt5.QtCore import QState, QStateMachine
 from PyQt5.QtWidgets import QApplication, QMainWindow, QGridLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QPushButton, QLabel, QWidget
 
-# Name:Pin dictionary for the GPIO pins used as digital inputs.
-# The name corresponds to the labels on the schematic.
+#######################################################################
+#
+# Define constants
+#
+#######################################################################
+
+#######################################################################
+#
+# Names here correspond to labels on the schematic
+
+# Relay control
+main220 = "Main220"
+vacuumpump = "VacuumPump"
+heater = "Heater"
+vacvalve = "Vac_Valve"
+upvalve = "Up_Valve"
+downforcevalve = "DownForce_Valve"
+heaterforwardvalve = "HeaterForward_Valve"
+blowoffvalve = "Blow_Off_Valve"
+covermagnets = "Cover_Magnets"
+
+# Status switches
+tabledownsw = "TableDownSW"
+
+#######################################################################
+#
+# Map the schematic names to GPIO pins.
 
 digitalInputs = {
-  "TableDownSW": 27
+  tabledownsw: 27
 }
-
-# Name:Pin dictionary for the GPIO pins used as digital outputs.  
-# The name corresponds to the labels on the schematic.
 
 digitalOutputs = {
-  "Main220" : 5,
-  "VacuumPump" : 6,
-  "Heater" : 13,
-  "Vac_Valve" : 19,
-  "Up_Valve" : 26,
-  "DownForce_Valve" : 21,
-  "HeaterForward_Valve" : 20,
-  "Blow_Off_Valve" : 16,
-  "Cover_Magnets" : 12
+  main220 : 5,
+  vacuumpump : 6,
+  heater : 13,
+  vacvalve : 19,
+  upvalve : 26,
+  downforcevalve : 21,
+  heaterforwardvalve : 20,
+  blowoffvalve : 16,
+  covermagnets : 12
 }
 
+#######################################################################
+#
 # The states of the above I/O are shown to the user on the status bar
 # of the main window. This list describes how they are shown in the
-# status bar.
+# status bar. The items are organized roughly in the order they are
+# expected to activate in normal operation.
 # * First entry is the label to use in the status bar.
 # * Second entry is the name of the input or output. When this is an
 #   empty string, the first entry is just a label used to categorize 
 #   the I/O that follows it. It has no direct mapping to an I/O port 
 #   itself.
-#
-# The items are organized roughly in the order they are expected to
-# activate in normal operation.
 
 statusIO = (
   ("Power", ""),
-  ("220V", "Main220"),
-  ("Vacuum", "VacuumPump"),
+  ("220V", main220),
+  ("Vacuum", vacuumpump),
   ("Heater", ""),   # 'Heater' here is a category label.
-  ("On", "Heater"), # 'Heater' here is the IO pin name that corresponds to label on schematic.
-  ("Forward", "HeaterForward_Valve"),
+  ("On", heater),
+  ("Forward", heaterforwardvalve),
   ("Frame", ""),
-  ("Up", "Up_Valve"),
-  ("Magnet", "Cover_Magnets"),
-  ("Drop", "TableDownSW"),
-  ("Down", "DownForce_Valve"),
+  ("Up", upvalve),
+  ("Magnet", covermagnets),
+  ("Drop", tabledownsw),
+  ("Down", downforcevalve),
   ("Table", ""),
-  ("Vacuum", "Vac_Valve"),
-  ("Air", "Blow_Off_Valve")
+  ("Vacuum", vacvalve),
+  ("Air", blowoffvalve)
 )
 
+#######################################################################
+#
+# Styling used to denote state of above I/O when displayed to user
+
+ioOnStyle = "* {background-color : green; color : white}"
+ioOffStyle = "* {background-color : white; color : gray}"
+
+#######################################################################
+#
+# Custom UI elements derived from standard Qt UI
+#
+#######################################################################
+
+#######################################################################
+#
 # OnOffLabel class was designed to be used in the status bar to indicate
 # state of machine components. It has an "On" and an "Off" state that
-# is clearly visually distinct from each other.
+# uses the above styles to visually distinguish from each other.
 
 class OnOffLabel(QLabel):
   
@@ -70,12 +107,52 @@ class OnOffLabel(QLabel):
     
   def turnOn(self):
     self.currentOn = True
-    self.setStyleSheet("QLabel {background-color : green; color : white}")
+    self.setStyleSheet(ioOnStyle)
     
   def turnOff(self):
     self.currentOn = False
-    self.setStyleSheet("QLabel {background-color : white; color : gray}")
+    self.setStyleSheet(ioOffStyle)
+
+#######################################################################
+#
+# Default QPushButton expands horizontally to fill available space but
+# only take up as much vertical space as it needs for the enclosed label.
+# This derived class expands to fill both horizontally and vertically.
+
+class ExpandButton(QPushButton):
+  def __init__(self, text, parent=None):
+    super().__init__(text, parent)
+    self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+#######################################################################
+#
+# This button is modified to have an on/off state (checked true/false)
+# that is toggled on each press.
+
+class ExpandToggleButton(ExpandButton):
+  def __init__(self, text, parent=None):
+    super().__init__(text, parent)
+    self.setCheckable(True)
+    self.updateCheckedStyle()
+
+  def updateCheckedStyle(self):
+    if self.isChecked():
+      self.setStyleSheet(ioOnStyle)
+    else:
+      self.setStyleSheet(ioOffStyle)
+
+  def nextCheckState(self):
+    super().nextCheckState()
+    self.updateCheckedStyle()
+
+#######################################################################
+#
+# Application UI
+#
+#######################################################################
     
+#######################################################################
+#
 # Main Window class is the master of all UI on screen.
 
 class MainWindow(QMainWindow):
@@ -106,7 +183,16 @@ class MainWindow(QMainWindow):
     if labelName in self.ioLabels:
       return self.ioLabels[labelName]    
 
+#######################################################################
+#
+# Application States & State Machine
+#
+#######################################################################
+
+#######################################################################
+#
 # StandByState is the initial start-up state
+
 class StandbyState(QState):
   def __init__(self, uiWindow, parent=None):
     super().__init__(parent)
@@ -136,34 +222,10 @@ class StandbyState(QState):
   def toDirectControl(self, directControl):
     self.addTransition(self.btnDC.clicked, directControl)
 
-# Default QPushButton expands horizontally to fill available space but
-# only take up as much vertical space as it needs for the enclosed label.
-# This derived class expands to fill both horizontally and vertically.
-class ExpandButton(QPushButton):
-  def __init__(self, text, parent=None):
-    super().__init__(text, parent)
-    self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-    
-# This button is modified to have an on/off state (checked true/false)
-# that is toggled on each press.
-class ExpandToggleButton(ExpandButton):
-  def __init__(self, text, parent=None):
-    super().__init__(text, parent)
-    self.setCheckable(True)
-    self.updateCheckedStyle()
-    
-  def updateCheckedStyle(self):
-    if self.isChecked():
-      self.setStyleSheet("ExpandToggleButton {background-color : green; color : white}")
-    else:
-      self.setStyleSheet("ExpandToggleButton {background-color : white; color : gray}")
-    
-  def nextCheckState(self):
-    super().nextCheckState()
-    self.updateCheckedStyle()
-      
-
+#######################################################################
+#
 # DirectControlState allows direct access to outputs
+
 class DirectControlState(QState):
   def __init__(self, uiWindow, parent=None):
     super().__init__(parent) 
@@ -204,7 +266,10 @@ class DirectControlState(QState):
   def toStandby(self, standby):
     self.addTransition(self.btnSB.clicked, standby)
 
+#######################################################################
+#
 # Main state machine of the thermoformer control
+
 class StateMachine(QStateMachine):
   def __init__(self, window, parent=None):
     super().__init__(parent)
@@ -222,6 +287,14 @@ class StateMachine(QStateMachine):
     
     self.setInitialState(standby)
 
+#######################################################################
+#
+# Main
+#
+#######################################################################
+
+#######################################################################
+#
 # main function
 
 def main():
