@@ -275,48 +275,56 @@ class IOManager(QObject):
 
 #######################################################################
 #
-# StandByState is the initial start-up state
-
-class StandbyState(QState):
+# MachineState is the base class for all states in this machine.
+class MachineState(QState):
   def __init__(self, uiWindow, ioManager, parent=None):
     super().__init__(parent)
     self.uiWindow = uiWindow
     self.ioManager = ioManager
     self.setupUI()
+
+  def setupUI(self):
+    self.ui = QLabel("Default MachineState UI needs to be overridden")
+
+  def onEntry(self, event):
+    self.uiWindow.setCentralWidget(self.ui)
+
+  def onExit(self, event):
+    # Reclaim the 'self.ui' object so uiWindow doesn't delete it
+    self.uiWindow.takeCentralWidget()
     
+#######################################################################
+#
+# StandByState is the initial start-up state
+
+class StandbyState(MachineState):
+
   # Set up the UI to be shown for this state
   def setupUI(self):
     self.btnDC = ExpandButton("Direct Control")
+    self.btnActivate = ExpandButton("Activate")
+    
     navBar = NavBar()
     navBar.addNav(self.btnDC, 0)
+    navBar.addNav(self.btnActivate, 3)
 
     standbyMenu = QGridLayout()
     standbyMenu.addWidget(ExpandButton("TODO: Hold to shut down"))
     
     self.ui = StateUI(navBar, "standby", standbyMenu)
 
-  def onEntry(self, event):
-    self.uiWindow.setCentralWidget(self.ui)
-    self.ioManager.outputReset()
-    
-  def onExit(self, event):
-    # Reclaim the 'self.ui' object so uiWindow doesn't delete it
-    self.uiWindow.takeCentralWidget()
-
   # Called by state machine to connect transitions
   def toDirectControl(self, directControl):
     self.addTransition(self.btnDC.clicked, directControl)
+    
+  def toActivate(self, activeState):
+    self.addTransition(self.btnActivate.clicked, activeState)
 
 #######################################################################
 #
 # DirectControlState allows direct access to outputs
 
-class DirectControlState(QState):
-  def __init__(self, uiWindow, ioManager, parent=None):
-    super().__init__(parent) 
-    self.uiWindow = uiWindow
-    self.ioManager = ioManager
-    self.setupUI()
+class DirectControlState(MachineState):
 
   # Set up the UI to be shown for this state
   def setupUI(self):
@@ -342,15 +350,41 @@ class DirectControlState(QState):
     
     self.ui = StateUI(navBar, "direct control", controlMenu)
     
-  def onEntry(self, event):
-    self.uiWindow.setCentralWidget(self.ui)
-
-  def onExit(self, event):
-    # Reclaim the 'self.ui' object so uiWindow doesn't delete it
-    self.uiWindow.takeCentralWidget()
-    
   def toStandby(self, standby):
     self.addTransition(self.btnSB.clicked, standby)
+
+#######################################################################
+#
+# ActiveState turns all the main components on in preparation for loading
+
+class ActiveState(MachineState):
+  def setupUI(self):
+    self.btnStandby = ExpandButton("Standby")
+    self.btnLoading = ExpandButton("Loading")
+    navBar = NavBar()
+    navBar.addNav(self.btnStandby, 0)
+    navBar.addNav(self.btnLoading, 3)
+    
+    activeMenu = QGridLayout()
+    todoLabel = QLabel("TODO: Turn on main, wait 2s, turn on vacuum, wait 2s, turn on heater. Leave 'Loading' button inactive until sequence is complete.")
+    todoLabel.setWordWrap(True)
+    activeMenu.addWidget(todoLabel)
+    
+    self.ui = StateUI(navBar, "active", activeMenu)
+    
+  def toStandby(self, standby):
+    self.addTransition(self.btnStandby.clicked, standby)
+
+  def toLoading(self, loading):
+    self.addTransition(self.btnLoading.clicked, loading)
+    
+  def onEntry(self, event):
+    super().onEntry(event)
+    self.ioManager.turnOn(main220)
+    # TODO: wait 2 seconds
+    self.ioManager.turnOn(vacuumpump)
+    # TODO: wait 2 seconds
+    self.ioManager.turnOn(heater)
 
 #######################################################################
 #
@@ -363,14 +397,17 @@ class StateMachine(QStateMachine):
     self.ioManager = ioManager
     
     standby = StandbyState(window, ioManager)
-    
     directControl = DirectControlState(window, ioManager)
+    active = ActiveState(window, ioManager)
     
-    standby.toDirectControl(directControl)
     directControl.toStandby(standby)
+    standby.toDirectControl(directControl)
+    standby.toActivate(active)
+    active.toStandby(standby)
 
     self.addState(directControl)
     self.addState(standby)
+    self.addState(active)
     
     self.setInitialState(standby)
 
