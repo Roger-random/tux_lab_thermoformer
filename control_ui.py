@@ -181,6 +181,19 @@ class NavBar(QGridLayout):
 
 #######################################################################
 #
+# StateUI is the template for a QWidget that holds all the UI for a state
+
+class StateUI(QWidget):
+  def __init__(self, navbar, label, controls, parent=None):
+    super().__init__(parent)
+    vbox = QVBoxLayout()
+    vbox.insertLayout(-1, navbar, stretch=2)
+    vbox.addWidget(StateLabel(label), stretch=1)
+    vbox.insertLayout(-1, controls, stretch=9)
+    self.setLayout(vbox)
+
+#######################################################################
+#
 # Application UI
 #
 #######################################################################
@@ -228,6 +241,11 @@ class IOManager(QObject):
   def __init__(self, uiOwner, parent=None):
     super().__init__(parent)
     self.uiOwner = uiOwner
+    self.outputReset()
+
+  def outputReset(self):
+    for doName in digitalOutputs.keys():
+      self.turnOff(doName)
 
   def expandToggleChanged(self, event):
     expandToggle = self.sender()
@@ -260,25 +278,26 @@ class IOManager(QObject):
 # StandByState is the initial start-up state
 
 class StandbyState(QState):
-  def __init__(self, uiWindow, parent=None):
+  def __init__(self, uiWindow, ioManager, parent=None):
     super().__init__(parent)
     self.uiWindow = uiWindow
+    self.ioManager = ioManager
     self.setupUI()
     
   # Set up the UI to be shown for this state
   def setupUI(self):
-    self.ui = QWidget()
-    self.btnDC = QPushButton("Direct Control", self.ui)
-    self.btnDC.flat = True
+    self.btnDC = ExpandButton("Direct Control")
+    navBar = NavBar()
+    navBar.addNav(self.btnDC, 0)
+
+    standbyMenu = QGridLayout()
+    standbyMenu.addWidget(ExpandButton("TODO: Hold to shut down"))
     
-    vbox = QVBoxLayout()
-    vbox.addWidget(StateLabel("standby"), stretch=1)
-    vbox.addWidget(QWidget(), stretch=9)
-    vbox.addWidget(self.btnDC, stretch=2)
-    self.ui.setLayout(vbox)
+    self.ui = StateUI(navBar, "standby", standbyMenu)
 
   def onEntry(self, event):
     self.uiWindow.setCentralWidget(self.ui)
+    self.ioManager.outputReset()
     
   def onExit(self, event):
     # Reclaim the 'self.ui' object so uiWindow doesn't delete it
@@ -301,16 +320,17 @@ class DirectControlState(QState):
 
   # Set up the UI to be shown for this state
   def setupUI(self):
-    self.ui = QWidget()
+    self.btnSB = ExpandButton("Standby")
+    navBar = NavBar()
+    navBar.addNav(self.btnSB, 3)
     
-    hbox = QHBoxLayout()
-
+    controlMenu = QHBoxLayout()
     for sio in statusIO:
       if sio[1] == "":
         groupBox = QGroupBox(sio[0])
         groupBoxLayout = QVBoxLayout()
         groupBox.setLayout(groupBoxLayout)
-        hbox.addWidget(groupBox)
+        controlMenu.addWidget(groupBox)
       elif sio[1] in digitalOutputs:
         btn = ExpandToggleButton(sio[0], sio[1])
         btn.clicked.connect(self.ioManager.expandToggleChanged)
@@ -320,15 +340,7 @@ class DirectControlState(QState):
       else:
         print("Warning: Extraneous element in statusIO. Was there a misspelling? " + sio[1])
     
-    self.btnSB = ExpandButton("Standby", self.ui)
-    navBar = NavBar()
-    navBar.addNav(self.btnSB, 3)
-    
-    vbox = QVBoxLayout()
-    vbox.insertLayout(-1, navBar, stretch=2)
-    vbox.addWidget(StateLabel("direct control"), stretch=1)
-    vbox.insertLayout(-1, hbox, stretch=9)
-    self.ui.setLayout(vbox)
+    self.ui = StateUI(navBar, "direct control", controlMenu)
     
   def onEntry(self, event):
     self.uiWindow.setCentralWidget(self.ui)
@@ -350,7 +362,7 @@ class StateMachine(QStateMachine):
     self.mainWindow = window
     self.ioManager = ioManager
     
-    standby = StandbyState(window)    
+    standby = StandbyState(window, ioManager)
     
     directControl = DirectControlState(window, ioManager)
     
