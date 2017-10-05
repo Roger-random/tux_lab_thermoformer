@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtCore import QState, QStateMachine, Qt
+from PyQt5.QtCore import QState, QStateMachine, Qt, QObject
 from PyQt5.QtWidgets import QApplication, QMainWindow, QGridLayout, QGroupBox, QHBoxLayout, QVBoxLayout, QSizePolicy, QPushButton, QLabel, QWidget
 
 #######################################################################
@@ -142,10 +142,11 @@ class ExpandButton(QPushButton):
 # that is toggled on each press.
 
 class ExpandToggleButton(ExpandButton):
-  def __init__(self, text, parent=None):
+  def __init__(self, text, name, parent=None):
     super().__init__(text, parent)
     self.setCheckable(True)
     self.updateCheckedStyle()
+    self.pinName = name
 
   def updateCheckedStyle(self):
     if self.isChecked():
@@ -218,6 +219,38 @@ class MainWindow(QMainWindow):
 
 #######################################################################
 #
+# I/O Management
+#
+#######################################################################
+
+class IOManager(QObject):
+
+  def __init__(self, uiOwner, parent=None):
+    super().__init__(parent)
+    self.uiOwner = uiOwner
+
+  def expandToggleChanged(self, event):
+    expandToggle = self.sender()
+    name = expandToggle.pinName
+    if event:
+      self.turnOn(name)
+    else:
+      self.turnOff(name)
+
+  def turnOn(self, name):
+    gpio = digitalOutputs[name]
+    print("Turn on GPIO #" + str(gpio))
+    statusText = self.uiOwner.findOnOffLabel(name)
+    statusText.turnOn()
+
+  def turnOff(self, name):
+    gpio = digitalOutputs[name]
+    print("Turn off GPIO #" + str(gpio))
+    statusText = self.uiOwner.findOnOffLabel(name)
+    statusText.turnOff()
+
+#######################################################################
+#
 # Application States & State Machine
 #
 #######################################################################
@@ -260,9 +293,10 @@ class StandbyState(QState):
 # DirectControlState allows direct access to outputs
 
 class DirectControlState(QState):
-  def __init__(self, uiWindow, parent=None):
+  def __init__(self, uiWindow, ioManager, parent=None):
     super().__init__(parent) 
     self.uiWindow = uiWindow
+    self.ioManager = ioManager
     self.setupUI()
 
   # Set up the UI to be shown for this state
@@ -278,7 +312,9 @@ class DirectControlState(QState):
         groupBox.setLayout(groupBoxLayout)
         hbox.addWidget(groupBox)
       elif sio[1] in digitalOutputs:
-        groupBoxLayout.addWidget(ExpandToggleButton(sio[0]))
+        btn = ExpandToggleButton(sio[0], sio[1])
+        btn.clicked.connect(self.ioManager.expandToggleChanged)
+        groupBoxLayout.addWidget(btn)
       elif sio[1] in digitalInputs:
         continue
       else:
@@ -309,13 +345,14 @@ class DirectControlState(QState):
 # Main state machine of the thermoformer control
 
 class StateMachine(QStateMachine):
-  def __init__(self, window, parent=None):
+  def __init__(self, window, ioManager, parent=None):
     super().__init__(parent)
     self.mainWindow = window
+    self.ioManager = ioManager
     
     standby = StandbyState(window)    
     
-    directControl = DirectControlState(window)
+    directControl = DirectControlState(window, ioManager)
     
     standby.toDirectControl(directControl)
     directControl.toStandby(standby)
@@ -340,8 +377,9 @@ def main():
   app = QApplication(sys.argv)
   
   mainWindow = MainWindow()
+  ioManager = IOManager(mainWindow)
   
-  stateMachine = StateMachine(window=mainWindow)
+  stateMachine = StateMachine(mainWindow, ioManager)
   stateMachine.start()
   
   sys.exit(app.exec_())
