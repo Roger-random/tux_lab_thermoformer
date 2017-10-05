@@ -1,6 +1,6 @@
 import sys
-from PyQt5.QtCore import QState, QStateMachine
-from PyQt5.QtWidgets import QApplication, QMainWindow, QGridLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QPushButton, QLabel, QWidget
+from PyQt5.QtCore import QState, QStateMachine, Qt
+from PyQt5.QtWidgets import QApplication, QMainWindow, QGridLayout, QGroupBox, QHBoxLayout, QVBoxLayout, QSizePolicy, QPushButton, QLabel, QWidget
 
 #######################################################################
 #
@@ -77,10 +77,11 @@ statusIO = (
 
 #######################################################################
 #
-# Styling used to denote state of above I/O when displayed to user
+# Style sheets
 
 ioOnStyle = "* {background-color : green; color : white}"
 ioOffStyle = "* {background-color : white; color : gray}"
+stateStyle = "* { font:bold; font-size:24px }"
 
 #######################################################################
 #
@@ -112,6 +113,17 @@ class OnOffLabel(QLabel):
   def turnOff(self):
     self.currentOn = False
     self.setStyleSheet(ioOffStyle)
+
+#######################################################################
+#
+# StateLabel is used at the top of the screen to indicate the current
+# state of the control
+
+class StateLabel(QLabel):
+  def __init__(self, name, parent=None):
+    super().__init__(name.upper(), parent)
+    self.setAlignment(Qt.AlignCenter)
+    self.setStyleSheet(stateStyle)
 
 #######################################################################
 #
@@ -202,13 +214,13 @@ class StandbyState(QState):
   # Set up the UI to be shown for this state
   def setupUI(self):
     self.ui = QWidget()
-    label = QLabel("Standby")
     self.btnDC = QPushButton("Direct Control", self.ui)
     self.btnDC.flat = True
     
     vbox = QVBoxLayout()
-    vbox.addWidget(label)
-    vbox.addWidget(self.btnDC)
+    vbox.addWidget(StateLabel("standby"), stretch=1)
+    vbox.addWidget(QWidget(), stretch=9)
+    vbox.addWidget(self.btnDC, stretch=2)
     self.ui.setLayout(vbox)
 
   def onEntry(self, event):
@@ -235,24 +247,27 @@ class DirectControlState(QState):
   # Set up the UI to be shown for this state
   def setupUI(self):
     self.ui = QWidget()
-    label = QLabel("Direct Control")
     
-    gridbox = QGridLayout()
-    gridbox.addWidget(ExpandToggleButton("Main"), 0, 0)
-    gridbox.addWidget(ExpandToggleButton("Vac"), 0, 1)
-    gridbox.addWidget(ExpandToggleButton("Heat"), 0, 2)
-    gridbox.addWidget(ExpandToggleButton("Fwd"),  1, 0)
-    gridbox.addWidget(ExpandToggleButton("Up"), 1, 1)
-    gridbox.addWidget(ExpandToggleButton("Down"), 1, 2)
-    gridbox.addWidget(ExpandToggleButton("Suck"), 2, 0)
-    gridbox.addWidget(ExpandToggleButton("Blow"), 2, 1)
-    gridbox.addWidget(ExpandToggleButton("Magnets"), 2, 2)
+    hbox = QHBoxLayout()
+
+    for sio in statusIO:
+      if sio[1] == "":
+        groupBox = QGroupBox(sio[0])
+        groupBoxLayout = QVBoxLayout()
+        groupBox.setLayout(groupBoxLayout)
+        hbox.addWidget(groupBox)
+      elif sio[1] in digitalOutputs:
+        groupBoxLayout.addWidget(ExpandToggleButton(sio[0]))
+      elif sio[1] in digitalInputs:
+        continue
+      else:
+        print("Warning: Extraneous element in statusIO. Was there a misspelling? " + sio[1])
     
     self.btnSB = ExpandButton("Standby", self.ui)
     
     vbox = QVBoxLayout()
-    vbox.addWidget(label, stretch=1)
-    vbox.insertLayout(-1, gridbox, stretch=9)
+    vbox.addWidget(StateLabel("direct control"), stretch=1)
+    vbox.insertLayout(-1, hbox, stretch=9)
     vbox.addWidget(self.btnSB, stretch=2)
     self.ui.setLayout(vbox)
     
