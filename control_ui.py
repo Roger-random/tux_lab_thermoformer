@@ -423,6 +423,7 @@ class LoadingState(MachineState):
 
   def onEntry(self, event):
     super().onEntry(event)
+    self.ioManager.turnOn(heater)
     self.ioManager.turnOn(upvalve)
     self.ioManager.turnOn(covermagnets)
 
@@ -534,20 +535,25 @@ class CompleteState(MachineState):
     navBar.addNav(self.btnStandby, 0)
     navBar.addNav(self.btnLoading, 3)
 
-    btnMagnet = ExpandToggleButton("Magnets", covermagnets)
-    btnMagnet.setChecked(True)
-    btnMagnet.updateCheckedStyle()
-    btnMagnet.clicked.connect(self.ioManager.expandToggleChanged)
+    self.btnMagnet = ExpandToggleButton("Magnets", covermagnets)
+    self.btnMagnet.setChecked(True)
+    self.btnMagnet.updateCheckedStyle()
+    self.btnMagnet.clicked.connect(self.ioManager.expandToggleChanged)
 
-    btnBlowoff = ExpandToggleButton("Blowoff", blowoffvalve)
-    btnBlowoff.setChecked(False)
-    btnBlowoff.clicked.connect(self.ioManager.expandToggleChanged)
+    self.btnBlowoff = ExpandToggleButton("Blowoff", blowoffvalve)
+    self.btnBlowoff.setChecked(False)
+    self.btnBlowoff.clicked.connect(self.ioManager.expandToggleChanged)
 
     completeMenu = QHBoxLayout()
-    completeMenu.addWidget(btnMagnet, 1)
-    completeMenu.addWidget(btnBlowoff, 1)
+    completeMenu.addWidget(self.btnMagnet, 1)
+    completeMenu.addWidget(self.btnBlowoff, 1)
 
     self.ui = StateUI(navBar, "complete", completeMenu)
+
+  def onEntry(self, e):
+    super().onEntry(e)
+    self.btnMagnet.setChecked(True) # TODO: Can this be read from IOManager?
+    self.btnMagnet.updateCheckedStyle()
 
   def toStandby(self, standby):
     self.addTransition(self.btnStandby.clicked, standby)
