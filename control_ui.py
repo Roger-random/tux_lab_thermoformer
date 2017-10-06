@@ -33,14 +33,14 @@ tabledownsw = "TableDownSW"
 # Map the schematic names to GPIO pins.
 
 digitalInputs = {
-  tabledownsw: 27
+  tabledownsw: 5
 }
 
 digitalOutputs = {
-  main220 : 5,
-  vacuumpump : 6,
+  main220 : 19,
+  vacuumpump : 27,
   heater : 13,
-  vacvalve : 19,
+  vacvalve : 22,
   upvalve : 26,
   downforcevalve : 21,
   heaterforwardvalve : 20,
