@@ -2,6 +2,8 @@ import sys
 from PyQt5.QtCore import QState, QStateMachine, Qt, QObject
 from PyQt5.QtWidgets import QApplication, QMainWindow, QGridLayout, QGroupBox, QHBoxLayout, QVBoxLayout, QSizePolicy, QPushButton, QLabel, QWidget
 
+import pigpio
+
 #######################################################################
 #
 # Define constants
@@ -253,7 +255,17 @@ class IOManager(QObject):
   def __init__(self, uiOwner, parent=None):
     super().__init__(parent)
     self.uiOwner = uiOwner
+    self.pi = pigpio.pi()
+    if not self.pi.connected:
+      print("Pi I/O is not connected")
+    for pin in digitalInputs.values():
+      self.pi.set_mode(pin, pigpio.INPUT)
+    for pin in digitalOutputs.values():
+      self.pi.set_mode(pin, pigpio.OUTPUT)
     self.outputReset()
+
+  def prepExit(self):
+    self.pi.stop()
 
   def outputReset(self):
     for doName in digitalOutputs.keys():
@@ -269,13 +281,13 @@ class IOManager(QObject):
 
   def turnOn(self, name):
     gpio = digitalOutputs[name]
-    print("Turn on GPIO #" + str(gpio))
+    self.pi.write(gpio, 1)
     statusText = self.uiOwner.findOnOffLabel(name)
     statusText.turnOn()
 
   def turnOff(self, name):
     gpio = digitalOutputs[name]
-    print("Turn off GPIO #" + str(gpio))
+    self.pi.write(gpio, 0)
     statusText = self.uiOwner.findOnOffLabel(name)
     statusText.turnOff()
 
@@ -626,6 +638,7 @@ def main():
   stateMachine = StateMachine(mainWindow, ioManager)
   stateMachine.start()
   
+  app.aboutToQuit.connect(ioManager.prepExit)
   sys.exit(app.exec_())
 
 if __name__ == '__main__':
