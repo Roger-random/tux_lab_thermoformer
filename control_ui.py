@@ -524,6 +524,39 @@ class FormingState(MachineState):
 
 #######################################################################
 #
+# Forming operating complete, operator can remove workpiece.
+
+class CompleteState(MachineState):
+  def setupUI(self):
+    self.btnStandby = ExpandButton("Standby")
+    self.btnLoading = ExpandButton("Loading")
+    navBar = NavBar()
+    navBar.addNav(self.btnStandby, 0)
+    navBar.addNav(self.btnLoading, 3)
+
+    btnMagnet = ExpandToggleButton("Magnets", covermagnets)
+    btnMagnet.setChecked(True)
+    btnMagnet.updateCheckedStyle()
+    btnMagnet.clicked.connect(self.ioManager.expandToggleChanged)
+
+    btnBlowoff = ExpandToggleButton("Blowoff", blowoffvalve)
+    btnBlowoff.setChecked(False)
+    btnBlowoff.clicked.connect(self.ioManager.expandToggleChanged)
+
+    completeMenu = QHBoxLayout()
+    completeMenu.addWidget(btnMagnet, 1)
+    completeMenu.addWidget(btnBlowoff, 1)
+
+    self.ui = StateUI(navBar, "complete", completeMenu)
+
+  def toStandby(self, standby):
+    self.addTransition(self.btnStandby.clicked, standby)
+
+  def toLoading(self, loading):
+    self.addTransition(self.btnLoading.clicked, loading)
+
+#######################################################################
+#
 # Main state machine of the thermoformer control
 
 class StateMachine(QStateMachine):
@@ -539,6 +572,7 @@ class StateMachine(QStateMachine):
     heating = HeatingState(window, ioManager)
     dropping = DropState(window, ioManager)
     forming = FormingState(window, ioManager)
+    complete = CompleteState(window, ioManager)
     
     directControl.toStandby(standby)
     standby.toDirectControl(directControl)
@@ -551,6 +585,9 @@ class StateMachine(QStateMachine):
     heating.toDrop(dropping)
     dropping.toHeating(heating)
     dropping.toForming(forming)
+    forming.toComplete(complete)
+    complete.toStandby(standby)
+    complete.toLoading(loading)
 
     self.addState(directControl)
     self.addState(standby)
@@ -559,6 +596,7 @@ class StateMachine(QStateMachine):
     self.addState(heating)
     self.addState(dropping)
     self.addState(forming)
+    self.addState(complete)
     
     self.setInitialState(standby)
 
