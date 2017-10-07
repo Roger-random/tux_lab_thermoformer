@@ -81,9 +81,10 @@ statusIO = (
 #
 # Style sheets
 
-ioOnStyle = "* {background-color : green; color : white}"
-ioOffStyle = "* {background-color : white; color : gray}"
+ioOnStyle = "* { font-size:18px; background-color : green; color : white }"
+ioOffStyle = "* { font-size:18px; background-color : white; color : gray }"
 stateStyle = "* { font:bold; font-size:24px }"
+expandBtnStyle = "* { font-size:20px }"
 
 #######################################################################
 #
@@ -137,6 +138,7 @@ class ExpandButton(QPushButton):
   def __init__(self, text, parent=None):
     super().__init__(text, parent)
     self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    self.setStyleSheet(expandBtnStyle)
 
 #######################################################################
 #
@@ -325,8 +327,8 @@ class StandbyState(MachineState):
 
   # Set up the UI to be shown for this state
   def setupUI(self):
-    self.btnDC = ExpandButton("Direct Control")
-    self.btnActivate = ExpandButton("Activate")
+    self.btnDC = ExpandButton("< Direct Control")
+    self.btnActivate = ExpandButton("Activate >")
     
     navBar = NavBar()
     navBar.addNav(self.btnDC, 0)
@@ -356,7 +358,7 @@ class DirectControlState(MachineState):
 
   # Set up the UI to be shown for this state
   def setupUI(self):
-    self.btnSB = ExpandButton("Standby")
+    self.btnSB = ExpandButton("Standby >")
     navBar = NavBar()
     navBar.addNav(self.btnSB, 3)
     
@@ -387,8 +389,8 @@ class DirectControlState(MachineState):
 
 class ActiveState(MachineState):
   def setupUI(self):
-    self.btnStandby = ExpandButton("Standby")
-    self.btnLoading = ExpandButton("Loading")
+    self.btnStandby = ExpandButton("< Standby")
+    self.btnLoading = ExpandButton("Load >")
     navBar = NavBar()
     navBar.addNav(self.btnStandby, 0)
     navBar.addNav(self.btnLoading, 3)
@@ -417,8 +419,8 @@ class ActiveState(MachineState):
 
 class LoadingState(MachineState):
   def setupUI(self):
-    self.btnActive = ExpandButton("Active")
-    self.btnHeating = ExpandButton("Heating")
+    self.btnActive = ExpandButton("< Active")
+    self.btnHeating = ExpandButton("Heat >")
     navBar = NavBar()
     navBar.addNav(self.btnActive, 0)
     navBar.addNav(self.btnHeating, 3)
@@ -451,8 +453,8 @@ class LoadingState(MachineState):
 
 class HeatingState(MachineState):
   def setupUI(self):
-    self.btnLoading = ExpandButton("Loading")
-    self.btnDrop = ExpandButton("Drop")
+    self.btnLoading = ExpandButton("< Load")
+    self.btnDrop = ExpandButton("Drop >")
     navBar = NavBar()
     navBar.addNav(self.btnLoading, 0)
     navBar.addNav(self.btnDrop, 3)
@@ -481,8 +483,8 @@ class HeatingState(MachineState):
 
 class DropState(MachineState):
   def setupUI(self):
-    self.btnHeating = ExpandButton("Heating")
-    self.btnForming = ExpandButton("Forming")
+    self.btnHeating = ExpandButton("< Heat")
+    self.btnForming = ExpandButton("Form >")
     navBar = NavBar()
     navBar.addNav(self.btnHeating, 0)
     navBar.addNav(self.btnForming, 3)
@@ -514,7 +516,7 @@ class DropState(MachineState):
 
 class FormingState(MachineState):
   def setupUI(self):
-    self.btnComplete = ExpandButton("Complete")
+    self.btnComplete = ExpandButton("Complete >")
     navBar = NavBar()
     navBar.addNav(self.btnComplete, 3)
 
@@ -541,8 +543,8 @@ class FormingState(MachineState):
 
 class CompleteState(MachineState):
   def setupUI(self):
-    self.btnStandby = ExpandButton("Standby")
-    self.btnLoading = ExpandButton("Loading")
+    self.btnStandby = ExpandButton("< Standby")
+    self.btnLoading = ExpandButton("Load >")
     navBar = NavBar()
     navBar.addNav(self.btnStandby, 0)
     navBar.addNav(self.btnLoading, 3)
