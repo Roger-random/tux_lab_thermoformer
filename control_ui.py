@@ -119,6 +119,25 @@ class OnOffLabel(QLabel):
 
 #######################################################################
 #
+# GPIOLabel is a label that changes its visual appearance (but maintain
+# the same text label) corresponding to the state of its corresponding
+# GPIO pin.
+
+class GPIOLabel(QLabel):
+
+  def __init__(self, name, gpioControl, pin, parent=None):
+    super().__init__(name, parent)
+    self.gpioPin = pin
+    gpioControl.callback(pin, pigpio.EITHER_EDGE, self.levelChange)
+
+  def levelChange(self, gpio, level, tick):
+    if gpio == self.gpioPin:
+      print("Level changed on pin " + str(gpio) + " to " + str(level))
+    else:
+      print("WARNING: Level change callback received on a different pin, ignored.")
+
+#######################################################################
+#
 # StateLabel is used at the top of the screen to indicate the current
 # state of the control
 
@@ -221,23 +240,26 @@ class PlaceholderLayout(QGridLayout):
 class MainWindow(QMainWindow):
 
   # Initialization
-  def __init__(self):
-    super().__init__()
-    self.createStatusIO()
+  def __init__(self, gpioControl, parent=None):
+    super().__init__(parent)
+    self.createStatusIO(gpioControl)
     self.setGeometry(0, 0, 800, 480)
     self.setWindowTitle("Tux Lab Thermoforming Control")
     self.show() # Will need to be showFullScreen() on the Pi touchscreen.
 
   # Walks through the statusIO list and create either an OnOffLabel
   # (For those with an I/O label) or a normal QLabel (For those without.)
-  def createStatusIO(self):
+  def createStatusIO(self, gpioControl):
     self.ioLabels = dict()
     
     for sio in statusIO:
       if sio[1] == "":
         self.statusBar().addPermanentWidget(QLabel(sio[0]))
       else:
-        ioLabel = OnOffLabel(sio[0], initialOn = (sio[1] == "TableDownSW")) # TableDownSW is a hack until I get real input
+        if sio[1] in digitalInputs:
+          ioLabel = GPIOLabel(sio[0], gpioControl, digitalInputs[sio[1]])
+        else:
+          ioLabel = OnOffLabel(sio[0], initialOn = False)
         self.ioLabels[sio[1]] = ioLabel
         self.statusBar().addPermanentWidget(ioLabel)
     
@@ -254,10 +276,10 @@ class MainWindow(QMainWindow):
 
 class IOManager(QObject):
 
-  def __init__(self, uiOwner, parent=None):
+  def __init__(self, uiOwner, gpioControl, parent=None):
     super().__init__(parent)
     self.uiOwner = uiOwner
-    self.pi = pigpio.pi()
+    self.pi = gpioControl
     if not self.pi.connected:
       print("Pi I/O is not connected")
     for pin in digitalInputs.values():
@@ -634,8 +656,9 @@ def main():
   global app
   app = QApplication(sys.argv)
   
-  mainWindow = MainWindow()
-  ioManager = IOManager(mainWindow)
+  gpioControl = pigpio.pi() # ioManager will be responsible for shutdown
+  mainWindow = MainWindow(gpioControl)
+  ioManager = IOManager(mainWindow,gpioControl)
   
   stateMachine = StateMachine(mainWindow, ioManager)
   stateMachine.start()
