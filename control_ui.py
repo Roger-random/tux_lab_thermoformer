@@ -138,26 +138,19 @@ class GPIOLabel(QLabel):
     self.gpioPin = pin
     self.pinState = self.gpioControl.read(self.gpioPin)
     self.debounceWaiting = False
-    gpioControl.callback(pin, pigpio.EITHER_EDGE, self.levelChange)
+    gpioControl.callback(pin, pigpio.EITHER_EDGE, self.levelChangeCallback)
 
-  def levelChange(self, gpio, level, tick):
+  def levelChangeCallback(self, gpio, level, tick):
     if gpio == self.gpioPin:
       if not self.debounceWaiting:
         self.debounceWaiting = True
         threading.Timer(debounceWaitPeriod, self.propagateLevelChange).start()
-        print("IO change signaled, waiting debounce period.")
-#      else:
-#        print("Level change within debounce period ignored.")
-#    else:
-#      print("WARNING: Ignoring level change callback received for a different pin.")
 
   def propagateLevelChange(self):
     currentState = self.gpioControl.read(self.gpioPin)
     if currentState != self.pinState:
       self.pinState = currentState
       print("Level changed on pin " + str(self.gpioPin) + " to " + str(currentState))
-#    else:
-#      print("IO change appears to be noise - level unchanged after debounce wait.")
     self.debounceWaiting = False
 
 #######################################################################
