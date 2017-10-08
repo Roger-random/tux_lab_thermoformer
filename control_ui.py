@@ -137,6 +137,7 @@ class GPIOLabel(QLabel):
     self.gpioControl = gpioControl
     self.gpioPin = pin
     self.pinState = self.gpioControl.read(self.gpioPin)
+    self.updateStyle()
     self.debounceWaiting = False
     gpioControl.callback(pin, pigpio.EITHER_EDGE, self.levelChangeCallback)
 
@@ -150,8 +151,14 @@ class GPIOLabel(QLabel):
     currentState = self.gpioControl.read(self.gpioPin)
     if currentState != self.pinState:
       self.pinState = currentState
-      print("Level changed on pin " + str(self.gpioPin) + " to " + str(currentState))
+      self.updateStyle()
     self.debounceWaiting = False
+
+  def updateStyle(self):
+    if self.pinState:
+      self.setStyleSheet(ioOnStyle)
+    else:
+      self.setStyleSheet(ioOffStyle)
 
 #######################################################################
 #
