@@ -1,4 +1,5 @@
 import sys
+import threading
 from PyQt5.QtCore import QState, QStateMachine, Qt, QObject
 from PyQt5.QtWidgets import QApplication, QMainWindow, QGridLayout, QGroupBox, QHBoxLayout, QVBoxLayout, QSizePolicy, QPushButton, QLabel, QWidget
 
@@ -88,6 +89,12 @@ expandBtnStyle = "* { font-size:20px }"
 
 #######################################################################
 #
+# Time-related constants
+
+debounceWaitPeriod = 0.2 # Seconds to wait for GPIO level to settle.
+
+#######################################################################
+#
 # Custom UI elements derived from standard Qt UI
 #
 #######################################################################
@@ -127,14 +134,31 @@ class GPIOLabel(QLabel):
 
   def __init__(self, name, gpioControl, pin, parent=None):
     super().__init__(name, parent)
+    self.gpioControl = gpioControl
     self.gpioPin = pin
+    self.pinState = self.gpioControl.read(self.gpioPin)
+    self.debounceWaiting = False
     gpioControl.callback(pin, pigpio.EITHER_EDGE, self.levelChange)
 
   def levelChange(self, gpio, level, tick):
     if gpio == self.gpioPin:
-      print("Level changed on pin " + str(gpio) + " to " + str(level))
-    else:
-      print("WARNING: Level change callback received on a different pin, ignored.")
+      if not self.debounceWaiting:
+        self.debounceWaiting = True
+        threading.Timer(debounceWaitPeriod, self.propagateLevelChange).start()
+        print("IO change signaled, waiting debounce period.")
+#      else:
+#        print("Level change within debounce period ignored.")
+#    else:
+#      print("WARNING: Ignoring level change callback received for a different pin.")
+
+  def propagateLevelChange(self):
+    currentState = self.gpioControl.read(self.gpioPin)
+    if currentState != self.pinState:
+      self.pinState = currentState
+      print("Level changed on pin " + str(self.gpioPin) + " to " + str(currentState))
+#    else:
+#      print("IO change appears to be noise - level unchanged after debounce wait.")
+    self.debounceWaiting = False
 
 #######################################################################
 #
