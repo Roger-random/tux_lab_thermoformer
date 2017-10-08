@@ -1,6 +1,6 @@
 import sys
 import threading
-from PyQt5.QtCore import QState, QStateMachine, Qt, QObject
+from PyQt5.QtCore import QState, QStateMachine, Qt, QObject, pyqtSignal
 from PyQt5.QtWidgets import QApplication, QMainWindow, QGridLayout, QGroupBox, QHBoxLayout, QVBoxLayout, QSizePolicy, QPushButton, QLabel, QWidget
 
 import pigpio
@@ -101,36 +101,13 @@ debounceWaitPeriod = 0.2 # Seconds to wait for GPIO level to settle.
 
 #######################################################################
 #
-# OnOffLabel class was designed to be used in the status bar to indicate
-# state of machine components. It has an "On" and an "Off" state that
-# uses the above styles to visually distinguish from each other.
-
-class OnOffLabel(QLabel):
-  
-  currentOn = False
-  
-  def __init__(self, name, parent=None, initialOn = False):
-    super().__init__(name, parent)
-    if(initialOn):
-      self.turnOn()
-    else:
-      self.turnOff()    
-    
-  def turnOn(self):
-    self.currentOn = True
-    self.setStyleSheet(ioOnStyle)
-    
-  def turnOff(self):
-    self.currentOn = False
-    self.setStyleSheet(ioOffStyle)
-
-#######################################################################
-#
 # GPIOLabel is a label that changes its visual appearance (but maintain
 # the same text label) corresponding to the state of its corresponding
 # GPIO pin.
 
 class GPIOLabel(QLabel):
+
+  levelChangeSignal = pyqtSignal()
 
   def __init__(self, name, gpioControl, pin, parent=None):
     super().__init__(name, parent)
@@ -138,6 +115,7 @@ class GPIOLabel(QLabel):
     self.gpioPin = pin
     self.pinState = self.gpioControl.read(self.gpioPin)
     self.updateStyle()
+    self.levelChangeSignal.connect(self.levelChangeUIThread, Qt.QueuedConnection)
     self.debounceWaiting = False
     gpioControl.callback(pin, pigpio.EITHER_EDGE, self.levelChangeCallback)
 
@@ -145,9 +123,12 @@ class GPIOLabel(QLabel):
     if gpio == self.gpioPin:
       if not self.debounceWaiting:
         self.debounceWaiting = True
-        threading.Timer(debounceWaitPeriod, self.propagateLevelChange).start()
+        threading.Timer(debounceWaitPeriod, self.levelChangeTimerThread).start()
 
-  def propagateLevelChange(self):
+  def levelChangeTimerThread(self):
+    self.levelChangeSignal.emit()
+
+  def levelChangeUIThread(self):
     currentState = self.gpioControl.read(self.gpioPin)
     if currentState != self.pinState:
       self.pinState = currentState
@@ -272,26 +253,18 @@ class MainWindow(QMainWindow):
     self.show() # Will need to be showFullScreen() on the Pi touchscreen.
 
   # Walks through the statusIO list and create either an OnOffLabel
-  # (For those with an I/O label) or a normal QLabel (For those without.)
+  # (For those with a label listed in digitalInputs or digitalOutputs
+  # array) or a normal QLabel (For those without.)
   def createStatusIO(self, gpioControl):
-    self.ioLabels = dict()
-    
     for sio in statusIO:
-      if sio[1] == "":
-        self.statusBar().addPermanentWidget(QLabel(sio[0]))
+      if sio[1] in digitalInputs:
+        ioLabel = GPIOLabel(sio[0], gpioControl, digitalInputs[sio[1]])
+      elif sio[1] in digitalOutputs:
+        ioLabel = GPIOLabel(sio[0], gpioControl, digitalOutputs[sio[1]])
       else:
-        if sio[1] in digitalInputs:
-          ioLabel = GPIOLabel(sio[0], gpioControl, digitalInputs[sio[1]])
-        else:
-          ioLabel = OnOffLabel(sio[0], initialOn = False)
-        self.ioLabels[sio[1]] = ioLabel
-        self.statusBar().addPermanentWidget(ioLabel)
+        ioLabel = QLabel(sio[0])
+      self.statusBar().addPermanentWidget(ioLabel)
     
-  # Find a particular OnOffLabel with the given name
-  def findOnOffLabel(self, labelName):
-    if labelName in self.ioLabels:
-      return self.ioLabels[labelName]    
-
 #######################################################################
 #
 # I/O Management
@@ -330,14 +303,10 @@ class IOManager(QObject):
   def turnOn(self, name):
     gpio = digitalOutputs[name]
     self.pi.write(gpio, 1)
-    statusText = self.uiOwner.findOnOffLabel(name)
-    statusText.turnOn()
 
   def turnOff(self, name):
     gpio = digitalOutputs[name]
     self.pi.write(gpio, 0)
-    statusText = self.uiOwner.findOnOffLabel(name)
-    statusText.turnOff()
 
 #######################################################################
 #
