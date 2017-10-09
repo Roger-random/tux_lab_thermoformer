@@ -95,6 +95,32 @@ debounceWaitPeriod = 0.2 # Seconds to wait for GPIO level to settle.
 
 #######################################################################
 #
+# Utility classes
+#
+#######################################################################
+
+# DelayedCall
+#
+# Similar to Qt's QTimer::singleShot(), but does not require caller to
+# have launched with QThread. We use Python's threading.Timer instead.
+#
+# Note: QTimer::singleShot() takes delay in milliseconds, Python
+# threading.Timer takes delay in seconds and that's what we use here.
+
+class DelayedCall(QObject):
+
+  uiThreadSignal = pyqtSignal()
+
+  def __init__(self, delay, callback, parent=None):
+    super().__init__(parent)
+    self.uiThreadSignal.connect(callback, Qt.QueuedConnection)
+    threading.Timer(delay, self.timerThreadCallback).start()
+
+  def timerThreadCallback(self):
+    self.uiThreadSignal.emit()
+
+#######################################################################
+#
 # Custom UI elements derived from standard Qt UI
 #
 #######################################################################
@@ -102,12 +128,10 @@ debounceWaitPeriod = 0.2 # Seconds to wait for GPIO level to settle.
 #######################################################################
 #
 # GPIOLabel is a label that changes its visual appearance (but maintain
-# the same text label) corresponding to the state of its corresponding
+# the same text) corresponding to the state of its corresponding
 # GPIO pin.
 
 class GPIOLabel(QLabel):
-
-  levelChangeSignal = pyqtSignal()
 
   def __init__(self, name, gpioControl, pin, parent=None):
     super().__init__(name, parent)
@@ -115,7 +139,6 @@ class GPIOLabel(QLabel):
     self.gpioPin = pin
     self.pinState = self.gpioControl.read(self.gpioPin)
     self.updateStyle()
-    self.levelChangeSignal.connect(self.levelChangeUIThread, Qt.QueuedConnection)
     self.debounceWaiting = False
     gpioControl.callback(pin, pigpio.EITHER_EDGE, self.levelChangeCallback)
 
@@ -123,12 +146,9 @@ class GPIOLabel(QLabel):
     if gpio == self.gpioPin:
       if not self.debounceWaiting:
         self.debounceWaiting = True
-        threading.Timer(debounceWaitPeriod, self.levelChangeTimerThread).start()
+        self.debounceDelay = DelayedCall(debounceWaitPeriod, self.waitedDebouncePeriod)
 
-  def levelChangeTimerThread(self):
-    self.levelChangeSignal.emit()
-
-  def levelChangeUIThread(self):
+  def waitedDebouncePeriod(self):
     currentState = self.gpioControl.read(self.gpioPin)
     if currentState != self.pinState:
       self.pinState = currentState
