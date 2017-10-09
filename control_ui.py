@@ -328,6 +328,9 @@ class IOManager(QObject):
     gpio = digitalOutputs[name]
     self.pi.write(gpio, 0)
 
+  def isOn(self, name):
+    return self.pi.read(digitalOutputs[name])
+
 #######################################################################
 #
 # Application States & State Machine
@@ -397,6 +400,7 @@ class DirectControlState(MachineState):
     navBar = NavBar()
     navBar.addNav(self.btnSB, 3)
     
+    self.controlButtons = dict()
     controlMenu = QHBoxLayout()
     for sio in statusIO:
       if sio[1] == "":
@@ -408,13 +412,20 @@ class DirectControlState(MachineState):
         btn = ExpandToggleButton(sio[0], sio[1])
         btn.clicked.connect(self.ioManager.expandToggleChanged)
         groupBoxLayout.addWidget(btn)
+        self.controlButtons[sio[1]] = btn
       elif sio[1] in digitalInputs:
         continue
       else:
         print("Warning: Extraneous element in statusIO. Was there a misspelling? " + sio[1])
     
     self.ui = StateUI(navBar, "direct control", controlMenu)
-    
+
+  def onEntry(self, e):
+    super().onEntry(e)
+    for k,v in self.controlButtons.items():
+      v.setChecked(self.ioManager.isOn(k))
+      v.updateCheckedStyle()
+
   def toStandby(self, standby):
     self.addTransition(self.btnSB.clicked, standby)
 
@@ -443,9 +454,13 @@ class ActiveState(MachineState):
   def onEntry(self, event):
     super().onEntry(event)
     self.ioManager.turnOn(main220)
-    # TODO: wait 2 seconds
+    self.delayedCall = DelayedCall(2, self.turnOnVacuum)
+
+  def turnOnVacuum(self):
     self.ioManager.turnOn(vacuumpump)
-    # TODO: wait 2 seconds
+    self.delayedCall = DelayedCall(2, self.turnOnHeater)
+
+  def turnOnHeater(self):
     self.ioManager.turnOn(heater)
 
 #######################################################################
