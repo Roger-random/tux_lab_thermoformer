@@ -85,7 +85,7 @@ statusIO = (
 ioOnStyle = "* { font-size:18px; background-color : green; color : white }"
 ioOffStyle = "* { font-size:18px; background-color : white; color : gray }"
 stateStyle = "* { font:bold; font-size:24px }"
-expandBtnStyle = "* { font-size:20px }"
+readableTextStyle = "* { font-size:20px }"
 
 #######################################################################
 #
@@ -124,6 +124,19 @@ class DelayedCall(QObject):
 # Custom UI elements derived from standard Qt UI
 #
 #######################################################################
+
+#######################################################################
+#
+# CenteredLabel puts QLabel text in the center and makes it larger for
+# readability. TODO: make this class unnecessary with use of an app-
+# wide stylesheet.
+
+class CenteredLabel(QLabel):
+
+  def __init__(self, text=None, parent=None):
+    super().__init__(text, parent)
+    self.setAlignment(Qt.AlignCenter)
+    self.setStyleSheet(readableTextStyle)
 
 #######################################################################
 #
@@ -182,7 +195,7 @@ class ExpandButton(QPushButton):
   def __init__(self, text, parent=None):
     super().__init__(text, parent)
     self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-    self.setStyleSheet(expandBtnStyle)
+    self.setStyleSheet(readableTextStyle)
 
 #######################################################################
 #
@@ -441,9 +454,20 @@ class StartupState(MachineState):
     navBar.addNav(self.btnStandby, 0)
     navBar.addNav(self.btnLoading, 3)
     
-    activeMenu = PlaceholderLayout("TODO: Turn on main, wait 2s, turn on vacuum, wait 2s, turn on heater. Leave 'Loading' button inactive until sequence is complete.")
+    self.mainPowerLabel = CenteredLabel()
+    self.vacuumPowerLabel = CenteredLabel()
+    self.heaterPowerLabel = CenteredLabel()
+    self.waitForLoad = CenteredLabel()
     
-    self.ui = StateUI(navBar, "starting up", activeMenu)
+    startupLabels = QVBoxLayout()
+    startupLabels.addWidget(QLabel()) # Spacer
+    startupLabels.addWidget(self.mainPowerLabel)
+    startupLabels.addWidget(self.vacuumPowerLabel)
+    startupLabels.addWidget(self.heaterPowerLabel)
+    startupLabels.addWidget(self.waitForLoad)
+    startupLabels.addWidget(QLabel()) # Spacer
+
+    self.ui = StateUI(navBar, "starting up", startupLabels)
     
   def toStandby(self, standby):
     self.addTransition(self.btnStandby.clicked, standby)
@@ -455,15 +479,22 @@ class StartupState(MachineState):
     super().onEntry(event)
     self.btnLoading.setEnabled(False) # Wait until everything turns on before enabling.
     self.ioManager.turnOn(main220)
+    self.mainPowerLabel.setText("Main 220V Power: ON")
+    self.vacuumPowerLabel.setText("Vacuum Pump Power: (Waiting)")
+    self.heaterPowerLabel.setText("Heater Power: (Waiting)")
+    self.waitForLoad.setText("")
     self.delayedCall = DelayedCall(2, self.turnOnVacuum)
 
   def turnOnVacuum(self):
     self.ioManager.turnOn(vacuumpump)
+    self.vacuumPowerLabel.setText("Vacuum Pump Power:  ON")
     self.delayedCall = DelayedCall(2, self.turnOnHeater)
 
   def turnOnHeater(self):
     self.ioManager.turnOn(heater)
-    self.btnLoading.setEnabled(True)
+    self.heaterPowerLabel.setText("Heater Power:  ON")
+    self.waitForLoad.setText("Startup Complete: Press Load to Begin")
+    self.btnLoading.setEnabled(True) # Enable button to proceed to Loading
 
 #######################################################################
 #
