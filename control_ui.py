@@ -366,11 +366,11 @@ class StandbyState(MachineState):
   # Set up the UI to be shown for this state
   def setupUI(self):
     self.btnDC = ExpandButton("< Direct Control")
-    self.btnActivate = ExpandButton("Activate >")
+    self.btnStartup = ExpandButton("Startup >")
     
     navBar = NavBar()
     navBar.addNav(self.btnDC, 0)
-    navBar.addNav(self.btnActivate, 3)
+    navBar.addNav(self.btnStartup, 3)
 
     standbyMenu = QGridLayout()
     standbyMenu.addWidget(ExpandButton("TODO: Hold to shut down"))
@@ -385,8 +385,8 @@ class StandbyState(MachineState):
   def toDirectControl(self, directControl):
     self.addTransition(self.btnDC.clicked, directControl)
     
-  def toActivate(self, activeState):
-    self.addTransition(self.btnActivate.clicked, activeState)
+  def toStartup(self, startupState):
+    self.addTransition(self.btnStartup.clicked, startupState)
 
 #######################################################################
 #
@@ -431,9 +431,9 @@ class DirectControlState(MachineState):
 
 #######################################################################
 #
-# ActiveState turns all the main components on in preparation for loading
+# StartupState turns all the main components on in preparation for loading
 
-class ActiveState(MachineState):
+class StartupState(MachineState):
   def setupUI(self):
     self.btnStandby = ExpandButton("< Standby")
     self.btnLoading = ExpandButton("Load >")
@@ -443,7 +443,7 @@ class ActiveState(MachineState):
     
     activeMenu = PlaceholderLayout("TODO: Turn on main, wait 2s, turn on vacuum, wait 2s, turn on heater. Leave 'Loading' button inactive until sequence is complete.")
     
-    self.ui = StateUI(navBar, "active", activeMenu)
+    self.ui = StateUI(navBar, "starting up", activeMenu)
     
   def toStandby(self, standby):
     self.addTransition(self.btnStandby.clicked, standby)
@@ -453,6 +453,7 @@ class ActiveState(MachineState):
     
   def onEntry(self, event):
     super().onEntry(event)
+    self.btnLoading.setEnabled(False) # Wait until everything turns on before enabling.
     self.ioManager.turnOn(main220)
     self.delayedCall = DelayedCall(2, self.turnOnVacuum)
 
@@ -462,6 +463,7 @@ class ActiveState(MachineState):
 
   def turnOnHeater(self):
     self.ioManager.turnOn(heater)
+    self.btnLoading.setEnabled(True)
 
 #######################################################################
 #
@@ -469,18 +471,18 @@ class ActiveState(MachineState):
 
 class LoadingState(MachineState):
   def setupUI(self):
-    self.btnActive = ExpandButton("< Active")
+    self.btnStandby = ExpandButton("< Standby")
     self.btnHeating = ExpandButton("Heat >")
     navBar = NavBar()
-    navBar.addNav(self.btnActive, 0)
+    navBar.addNav(self.btnStandby, 0)
     navBar.addNav(self.btnHeating, 3)
 
     loadingMenu = PlaceholderLayout("TODO: (1) Button to start auto-cycle. (2) Button to allow operator to raise/lower the frame as needed. (3) Button to turn magnet on/off (4) Deactivate forward progress until heater is up to temperature")
 
     self.ui = StateUI(navBar, "loading", loadingMenu)
 
-  def toActivate(self, activate):
-    self.addTransition(self.btnActive.clicked, activate)
+  def toStandby(self, standby):
+    self.addTransition(self.btnStandby.clicked, standby)
 
   def toHeating(self, heating):
     self.addTransition(self.btnHeating.clicked, heating)
@@ -493,9 +495,6 @@ class LoadingState(MachineState):
 
   def onExit(self, e):
     super().onExit(e)
-    if e.sender() == self.btnActive:
-      self.ioManager.turnOff(upvalve)
-      self.ioManager.turnOff(covermagnets)
 
 #######################################################################
 #
@@ -637,7 +636,7 @@ class StateMachine(QStateMachine):
     
     standby = StandbyState(window, ioManager)
     directControl = DirectControlState(window, ioManager)
-    active = ActiveState(window, ioManager)
+    startup = StartupState(window, ioManager)
     loading = LoadingState(window, ioManager)
     heating = HeatingState(window, ioManager)
     dropping = DropState(window, ioManager)
@@ -646,10 +645,10 @@ class StateMachine(QStateMachine):
     
     directControl.toStandby(standby)
     standby.toDirectControl(directControl)
-    standby.toActivate(active)
-    active.toStandby(standby)
-    active.toLoading(loading)
-    loading.toActivate(active)
+    standby.toStartup(startup)
+    startup.toStandby(standby)
+    startup.toLoading(loading)
+    loading.toStandby(standby)
     loading.toHeating(heating)
     heating.toLoading(loading)
     heating.toDrop(dropping)
@@ -661,7 +660,7 @@ class StateMachine(QStateMachine):
 
     self.addState(directControl)
     self.addState(standby)
-    self.addState(active)
+    self.addState(startup)
     self.addState(loading)
     self.addState(heating)
     self.addState(dropping)
