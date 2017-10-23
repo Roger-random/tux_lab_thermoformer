@@ -3,7 +3,10 @@ import threading
 from PyQt5.QtCore import QState, QStateMachine, Qt, QObject, pyqtSignal
 from PyQt5.QtWidgets import QApplication, QMainWindow, QGridLayout, QGroupBox, QHBoxLayout, QVBoxLayout, QSizePolicy, QPushButton, QLabel, QWidget
 
-import pigpio
+try:
+  import pigpio
+except ImportError:
+  import pigpio_stub as pigpio
 
 #######################################################################
 #
