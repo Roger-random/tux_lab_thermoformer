@@ -1,0 +1,3 @@
+(fp_lib_table
+  (lib (name ReflowOven)(type KiCad)(uri /home/tux/Manufacturing/Electronics/reflow_oven_controller/modules)(options "")(descr ""))
+)

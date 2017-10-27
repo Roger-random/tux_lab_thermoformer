@@ -1,0 +1,185 @@
+Cmp-Mod V01 Created by Cvpcb (2014-07-09 BZR 4988)-product   date = Thu 14 Aug 2014 10:31:21 AM PDT
+
+BeginCmp
+TimeStamp = /53CA6DDA;
+Reference = C1;
+ValeurCmp = C;
+IdModule  = SMD_Packages:SM0805;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6DD4;
+Reference = C2;
+ValeurCmp = C;
+IdModule  = SMD_Packages:SM0805;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6DCE;
+Reference = C3;
+ValeurCmp = C;
+IdModule  = SMD_Packages:SM0603_Capa;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6E4B;
+Reference = C4;
+ValeurCmp = C;
+IdModule  = SMD_Packages:SM0805;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6E45;
+Reference = C5;
+ValeurCmp = C;
+IdModule  = SMD_Packages:SM0805;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6E3F;
+Reference = C6;
+ValeurCmp = C;
+IdModule  = SMD_Packages:SM0603_Capa;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6DC8;
+Reference = C7;
+ValeurCmp = C;
+IdModule  = SMD_Packages:SM0603_Capa;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6E39;
+Reference = C8;
+ValeurCmp = C;
+IdModule  = SMD_Packages:SM0603_Capa;
+EndCmp
+
+BeginCmp
+TimeStamp = /53ECF893;
+Reference = C9;
+ValeurCmp = C;
+IdModule  = SMD_Packages:SM0603_Capa;
+EndCmp
+
+BeginCmp
+TimeStamp = /53ECF857;
+Reference = C10;
+ValeurCmp = C;
+IdModule  = SMD_Packages:SM0603_Capa;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6DE0;
+Reference = FB1;
+ValeurCmp = FILTER;
+IdModule  = SMD_Packages:SM0603;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6DE6;
+Reference = FB2;
+ValeurCmp = FILTER;
+IdModule  = SMD_Packages:SM0603;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6E51;
+Reference = FB3;
+ValeurCmp = FILTER;
+IdModule  = SMD_Packages:SM0603;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6E57;
+Reference = FB4;
+ValeurCmp = FILTER;
+IdModule  = SMD_Packages:SM0603;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6DC2;
+Reference = P1;
+ValeurCmp = CONN_2;
+IdModule  = ReflowOven:TermB_OnShore_3d5mm;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6E33;
+Reference = P2;
+ValeurCmp = CONN_2;
+IdModule  = ReflowOven:TermB_OnShore_3d5mm;
+EndCmp
+
+BeginCmp
+TimeStamp = /53EC1AB1;
+Reference = P3;
+ValeurCmp = CONN_7;
+IdModule  = Connect:SIL-7;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA7540;
+Reference = R1;
+ValeurCmp = R;
+IdModule  = SMD_Packages:SM0603_Resistor;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA7594;
+Reference = R2;
+ValeurCmp = R;
+IdModule  = SMD_Packages:SM0603_Resistor;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA75E7;
+Reference = R3;
+ValeurCmp = R;
+IdModule  = SMD_Packages:SM0603_Resistor;
+EndCmp
+
+BeginCmp
+TimeStamp = /53EAB423;
+Reference = R4;
+ValeurCmp = R;
+IdModule  = SMD_Packages:SM0603_Resistor;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6DEC;
+Reference = U1;
+ValeurCmp = NUP2105;
+IdModule  = SMD_Packages:SOT23;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6E5D;
+Reference = U2;
+ValeurCmp = NUP2105;
+IdModule  = SMD_Packages:SOT23;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6DBC;
+Reference = U3;
+ValeurCmp = MAX31855;
+IdModule  = SMD_Packages:SO8E;
+EndCmp
+
+BeginCmp
+TimeStamp = /53CA6E2D;
+Reference = U4;
+ValeurCmp = MAX31855;
+IdModule  = SMD_Packages:SO8E;
+EndCmp
+
+BeginCmp
+TimeStamp = /53EC039B;
+Reference = U5;
+ValeurCmp = TXB0104;
+IdModule  = SMD_Packages:SSOP14;
+EndCmp
+
+EndListe
